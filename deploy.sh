@@ -7,14 +7,14 @@ POSTGRES_DB="postgres"
 git log
 test -e package && rm -r package
 mkdir -p package
-pip3 install --target package py-postgresql
+pip3 install --target package py-postgresql >/dev/null 2>/dev/null
 wget https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -O package/global-bundle.pem
 find . -name "*.py" | while read fn_path; do
 	fn="$(printf "$fn_path" | sed 's+.*/++' | sed 's/\.py//')"
 	cp $fn_path lambda_function.py;
 	( 
 		cd package
-		zip -r ../${fn}.zip .
+		zip -r ../${fn}.zip . >/dev/null 2>/dev/null
 	)
 	zip "${fn}.zip" lambda_function.py;
 	aws lambda update-function-code \
