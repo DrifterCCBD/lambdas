@@ -21,11 +21,11 @@ find . -name "*.py" | while read fn_path; do
 	--zip-file "fileb://${fn}.zip";
 	rm "${fn}.zip"
 done
-
+rm lambda_function.py
+rm -r package
 find . -name "*.py" | while read fn_path; do
 	fn="$(printf "$fn_path" | sed 's+.*/++' | sed 's/\.py//')"
 	aws lambda update-function-configuration \
 			--function-name "${fn}" \
 			--environment "{\"Variables\":{\"POSTGRES_HOSTNAME\":\"${POSTGRES_HOSTNAME}\",\"POSTGRES_PORT\":\"${POSTGRES_PORT}\",\"POSTGRES_DB\":\"${POSTGRES_DB}\",\"POSTGRES_USER\":\"${POSTGRES_USER}\",\"POSTGRES_PASS\":\"${POSTGRES_PASS}\"}}"
 	done
-rm lambda_function.py
