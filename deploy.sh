@@ -23,6 +23,6 @@ find . -name "*.py" | while read fn_path; do
 	rm "${fn}.zip"
 	aws lambda update-function-configuration \
 		--function-name "${fn}" \
-		--environment "{POSTGRES_HOSTNAME=${POSTGRES_HOSTNAME},POSTGRES_PORT=${POSTGRES_PORT},POSTGRES_DB=${POSTGRES_DB},POSTGRES_USER=${POSTGRES_USER},POSTGRES_PASS=${POSTGRES_PASS}"
+		--environment "{\"POSTGRES_HOSTNAME\"=\"${POSTGRES_HOSTNAME}\",\"POSTGRES_PORT\"=\"${POSTGRES_PORT}\",\"POSTGRES_DB\"=\"${POSTGRES_DB}\",\"POSTGRES_USER\"=\"${POSTGRES_USER}\",POSTGRES_PASS=\"${POSTGRES_PASS}\""
 done
 rm lambda_function.py
