@@ -4,7 +4,6 @@ POSTGRES_HOSTNAME="database-1.cgwwmxrgggyq.us-east-1.rds.amazonaws.com"
 POSTGRES_PORT="5432"
 POSTGRES_DB="postgres"
 
-git log
 test -e package && rm -r package
 mkdir -p package
 pip3 install --target package py-postgresql >/dev/null 2>/dev/null
@@ -23,6 +22,6 @@ find . -name "*.py" | while read fn_path; do
 	rm "${fn}.zip"
 	aws lambda update-function-configuration \
 		--function-name "${fn}" \
-		--environment "{\"POSTGRES_HOSTNAME\":\"${POSTGRES_HOSTNAME}\",\"POSTGRES_PORT\":\"${POSTGRES_PORT}\",\"POSTGRES_DB\":\"${POSTGRES_DB}\",\"POSTGRES_USER\":\"${POSTGRES_USER}\",POSTGRES_PASS:\"${POSTGRES_PASS}\"}"
+		--environment "{\"POSTGRES_HOSTNAME\":\"${POSTGRES_HOSTNAME}\",\"POSTGRES_PORT\":\"${POSTGRES_PORT}\",\"POSTGRES_DB\":\"${POSTGRES_DB}\",\"POSTGRES_USER\":\"${POSTGRES_USER}\",\"POSTGRES_PASS\":\"${POSTGRES_PASS}\"}"
 done
 rm lambda_function.py
