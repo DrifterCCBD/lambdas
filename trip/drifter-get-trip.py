@@ -13,7 +13,7 @@ def lambda_handler(event, context):
         }
 
     except:
-        # TODO do other parameters check?
+        # TODO do other parameters check? like for available trips for rider
         print('username is not a parameter')
 
     # TODO implement
