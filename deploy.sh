@@ -15,7 +15,7 @@ test -e package && rm -r package
 mkdir -p package
 pip3 install --target package py-postgresql >/dev/null 2>/dev/null
 wget https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -O package/global-bundle.pem
-find . -name "*.py" | while read fn_path; do
+find . -path ./package -prune -o -name "*.py" | while read fn_path; do
 	fn="$(printf "$fn_path" | sed 's+.*/++' | sed 's/\.py//')"
 	cp $fn_path lambda_function.py;
 	( 
