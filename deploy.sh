@@ -15,13 +15,13 @@ find . -name "*.py" | while read fn_path; do
 		cd package
 		zip -r ../${fn}.zip . >/dev/null 2>/dev/null
 	)
+	aws lambda update-function-configuration \
+		--function-name "${fn}" \
+		--environment "{\"Variables\":{\"POSTGRES_HOSTNAME\":\"${POSTGRES_HOSTNAME}\",\"POSTGRES_PORT\":\"${POSTGRES_PORT}\",\"POSTGRES_DB\":\"${POSTGRES_DB}\",\"POSTGRES_USER\":\"${POSTGRES_USER}\",\"POSTGRES_PASS\":\"${POSTGRES_PASS}\"}}"
 	zip "${fn}.zip" lambda_function.py;
 	aws lambda update-function-code \
 	--function-name "${fn}" \
 	--zip-file "fileb://${fn}.zip";
 	rm "${fn}.zip"
-	aws lambda update-function-configuration \
-		--function-name "${fn}" \
-		--environment "{\"Variables\":{\"POSTGRES_HOSTNAME\":\"${POSTGRES_HOSTNAME}\",\"POSTGRES_PORT\":\"${POSTGRES_PORT}\",\"POSTGRES_DB\":\"${POSTGRES_DB}\",\"POSTGRES_USER\":\"${POSTGRES_USER}\",\"POSTGRES_PASS\":\"${POSTGRES_PASS}\"}}"
 done
 rm lambda_function.py
