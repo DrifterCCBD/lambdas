@@ -5,6 +5,7 @@ POSTGRES_PORT="5432"
 POSTGRES_DB="postgres"
 
 
+## build source library layer 
 test -e package && rm -r package
 mkdir -p package
 pip3 install --target package psycopg2-binary >/dev/null 2>/dev/null
@@ -13,7 +14,7 @@ wget https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -O packag
 	cd package
 	zip -r ../package.zip . >/dev/null 2>/dev/null
 )
-aws lambda publish-layer-version --layer-name postgres-lib \
+aws lambda publish-layer-version --layer-name psycopg2-lib \
     --description "Postgres Library" \
     --license-info "MIT" \
     --zip-file fileb://package.zip \
@@ -23,6 +24,8 @@ cat layer_log | jq  --raw-output ".LayerVersionArn"
 
 rm -r package package.zip 
 
+
+## upload source code for each function
 find . -path ./package -prune -o -name "*.py" | while read fn_path; do
 	fn="$(printf "$fn_path" | sed 's+.*/++' | sed 's/\.py//')"
 	cp $fn_path lambda_function.py;
@@ -34,6 +37,7 @@ find . -path ./package -prune -o -name "*.py" | while read fn_path; do
 done
 rm lambda_function.py
 
+## associate layer and environmental vars with each function
 find . -path ./package -prune -o -name "*.py" | while read fn_path; do
 	fn="$(printf "$fn_path" | sed 's+.*/++' | sed 's/\.py//')"
 	aws lambda update-function-configuration \
