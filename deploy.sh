@@ -42,6 +42,6 @@ find . -path ./package -prune -o -name "*.py" | while read fn_path; do
 	fn="$(printf "$fn_path" | sed 's+.*/++' | sed 's/\.py//')"
 	aws lambda update-function-configuration \
 			--function-name "${fn}" \
-			--layers "$(cat layer_log | jq ".LayerVersionArn")" \
+			--layers "$(cat layer_log | jq -r ".LayerVersionArn")" \
 			--environment "{\"Variables\":{\"POSTGRES_HOSTNAME\":\"${POSTGRES_HOSTNAME}\",\"POSTGRES_PORT\":\"${POSTGRES_PORT}\",\"POSTGRES_DB\":\"${POSTGRES_DB}\",\"POSTGRES_USER\":\"${POSTGRES_USER}\",\"POSTGRES_PASS\":\"${POSTGRES_PASS}\"}}"
 done
