@@ -21,6 +21,7 @@ def lambda_handler(event, context):
     if username and email:
         with psycopg.connect(postgres_connect_string) as db:
            with db.cursor() as cur:
-                cur.execute("INSERT into users (username, email, first_name, last_name, phone, dob, gender) VALUES (%s, %s, ' ', ' ', 0, '1990-01-01', ' ')", (username, email))
-        db.commit()
+                cur.execute("INSERT into users (username, email, first_name, last_name, phone, dob, gender) VALUES (%s, %s, ' ', ' ', '15555555555', '1990-01-01', ' ')", (username, email))
+           db.commit()
     return event
+
