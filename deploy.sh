@@ -8,7 +8,7 @@ POSTGRES_DB="postgres"
 ## build source library layer 
 test -e package && rm -r package
 mkdir -p package/python/lib/python3.9/site-packages
-pip3 install --target package/python/lib/python3.9/site-packages psycopg2-binary >/dev/null 2>/dev/null
+pip3 install --target package/python/lib/python3.9/site-packages "psycopg[binary]" >/dev/null 2>/dev/null
 wget https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -O package/global-bundle.pem
 ( 
 	cd package

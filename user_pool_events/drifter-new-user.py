@@ -1,5 +1,5 @@
 import json
-import psycopg2
+import psycopg
 import os
 
 def lambda_handler(event, context):
@@ -8,14 +8,6 @@ def lambda_handler(event, context):
     db_name = os.environ.get("POSTGRES_DB")
     db_user = os.environ.get("POSTGRES_USER")
     db_pass = os.environ.get("POSTGRES_PASS")
-    os.system("ls -al /opt")
-    postgres_uri = "pq://{}:{}@{}:{}/{}?[sslmode]=require&[sslrootcrtfile]=./global-bundle.pem".format(
-        db_user,
-        db_pass,
-        db_host,
-        db_port,
-        db_name
-        )
     postgres_connect_string = "host='{}' port='{}' sslmode=verify-full sslrootcert=/opt/global-bundle.pem dbname='{}' user='{}' password='{}'".format(
         db_host,
         db_port,
@@ -29,12 +21,12 @@ def lambda_handler(event, context):
     if username and email:
         db = psycopg2.connect(postgres_connect_string)
         cur = db.cursor()
-        
-        cur.prepare("SELECT * from information_schema.tables WHERE table_name = %s")
-        cur.execute(("tables"))
+        cur.execute("prepare read_tables as SELECT * from information_schema.tables WHERE table_name = $1")
+        cur.execute("execute read_tables (%s)", ("tables"))
         for record in cur:
             print(record)
     
     return event
+
 
 
