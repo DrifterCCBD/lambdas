@@ -19,14 +19,8 @@ def lambda_handler(event, context):
     username = event.get("userName",False)
     email = event.get("request",{}).get("userAttributes",{}).get("email",False)
     if username and email:
-        db = psycopg2.connect(postgres_connect_string)
-        cur = db.cursor()
-        cur.execute("prepare read_tables as SELECT * from information_schema.tables WHERE table_name = $1")
-        cur.execute("execute read_tables (%s)", ("tables"))
-        for record in cur:
-            print(record)
-    
+        with psycopg.connect(postgres_connect_string) as db:
+           with db.cursor() as cur:
+                cur.execute("INSERT into users (username, email, first_name, last_name, phone, dob, gender) VALUES (%s, %s, ' ', ' ', 0, '1990-01-01', ' ')", (username, email))
+        db.commit()
     return event
-
-
-
