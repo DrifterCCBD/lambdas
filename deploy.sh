@@ -18,7 +18,9 @@ aws lambda publish-layer-version --layer-name postgres-lib \
     --license-info "MIT" \
     --zip-file fileb://package.zip \
     --compatible-runtimes python3.8 python3.9 \
-    --compatible-architectures "x86_64"
+    --compatible-architectures "x86_64" | tee -a layer_log
+cat layer_log | jq ".LayerVersionArn"
+
 rm -r package package.zip 
 
 find . -path ./package -prune -o -name "*.py" | while read fn_path; do
@@ -36,6 +38,6 @@ find . -path ./package -prune -o -name "*.py" | while read fn_path; do
 	fn="$(printf "$fn_path" | sed 's+.*/++' | sed 's/\.py//')"
 	aws lambda update-function-configuration \
 			--function-name "${fn}" \
-			--layers "postgres-lib" \
+			--layers "$(cat layer_log | jq ".LayerVersionArn")" \
 			--environment "{\"Variables\":{\"POSTGRES_HOSTNAME\":\"${POSTGRES_HOSTNAME}\",\"POSTGRES_PORT\":\"${POSTGRES_PORT}\",\"POSTGRES_DB\":\"${POSTGRES_DB}\",\"POSTGRES_USER\":\"${POSTGRES_USER}\",\"POSTGRES_PASS\":\"${POSTGRES_PASS}\"}}"
 done
