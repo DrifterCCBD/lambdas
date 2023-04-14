@@ -7,8 +7,8 @@ POSTGRES_DB="postgres"
 
 ## build source library layer 
 test -e package && rm -r package
-mkdir -p package
-pip3 install --target package psycopg2-binary >/dev/null 2>/dev/null
+mkdir -p package/python/lib/python3.9
+pip3 install --target package/python/lib/python3.9 psycopg2-binary >/dev/null 2>/dev/null
 wget https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem -O package/global-bundle.pem
 ( 
 	cd package
@@ -18,7 +18,7 @@ aws lambda publish-layer-version --layer-name psycopg2-lib \
     --description "Postgres Library" \
     --license-info "MIT" \
     --zip-file fileb://package.zip \
-    --compatible-runtimes python3.8 python3.9 \
+    --compatible-runtimes python3.9 \
     --compatible-architectures "x86_64" | tee -a layer_log
 cat layer_log | jq  --raw-output ".LayerVersionArn"
 

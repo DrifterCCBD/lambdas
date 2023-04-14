@@ -8,6 +8,7 @@ def lambda_handler(event, context):
     db_name = os.environ.get("POSTGRES_DB")
     db_user = os.environ.get("POSTGRES_USER")
     db_pass = os.environ.get("POSTGRES_PASS")
+    os.system("ls -al /opt")
     postgres_uri = "pq://{}:{}@{}:{}/{}?[sslmode]=require&[sslrootcrtfile]=./global-bundle.pem".format(
         db_user,
         db_pass,
@@ -15,18 +16,25 @@ def lambda_handler(event, context):
         db_port,
         db_name
         )
+    postgres_connect_string = "host='{}' port='{}' sslmode=verify-full sslrootcert=/opt/global-bundle.pem dbname='{}' user='{}' password='{}'".format(
+        db_host,
+        db_port,
+        db_name,
+        db_user,
+        db_pass
+        )
     
     username = event.get("userName",False)
     email = event.get("request",{}).get("userAttributes",{}).get("email",False)
     if username and email:
-        db = postgresql.open(postgres_uri)    
-        get_table = db.prepare("SELECT * from information_schema.tables WHERE table_name = $1")
-        print(get_table("tables"))
-
-        # Streaming, in a transaction.
-        with db.xact():
-	        for x in get_table.rows("tables"):
-		        print(x)
+        db = psycopg2.connect(postgres_connect_string)
+        cur = db.cursor()
+        
+        cur.prepare("SELECT * from information_schema.tables WHERE table_name = %s")
+        cur.execute(("tables"))
+        for record in cur:
+            print(record)
     
     return event
+
 
