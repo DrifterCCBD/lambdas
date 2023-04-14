@@ -19,7 +19,7 @@ aws lambda publish-layer-version --layer-name postgres-lib \
     --zip-file fileb://package.zip \
     --compatible-runtimes python3.8 python3.9 \
     --compatible-architectures "x86_64" | tee -a layer_log
-cat layer_log | jq ".LayerVersionArn"
+cat layer_log | jq  --raw-output ".LayerVersionArn"
 
 rm -r package package.zip 
 
