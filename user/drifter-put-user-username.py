@@ -40,9 +40,9 @@ final_query = {
 
 #reference: https://github.com/awslabs/aws-support-tools/blob/master/Cognito/decode-verify-jwt/decode-verify-jwt.py#L16
 
-region = 'ap-southeast-2'
-userpool_id = 'ap-southeast-2_xxxxxxxxx'
-app_client_id = '<ENTER APP CLIENT ID HERE>'
+region = 'us-east-1'
+userpool_id = 'us-east-1_t2k3bBj7B'
+app_client_id = '11rhsugidc5dspcofo86ec77ed'
 keys_url = 'https://cognito-idp.{}.amazonaws.com/{}/.well-known/jwks.json'.format(region, userpool_id)
 # instead of re-downloading the public keys every time
 # we download them only on cold start
@@ -50,6 +50,7 @@ keys_url = 'https://cognito-idp.{}.amazonaws.com/{}/.well-known/jwks.json'.forma
 with urllib.request.urlopen(keys_url) as f:
   response = f.read()
 keys = json.loads(response.decode('utf-8'))['keys']
+print(keys)
 
 def verify_jwt_token(token):
     # get the kid from the headers prior to verification
@@ -130,8 +131,10 @@ def lambda_handler(event, context):
     
     assert(username != False)
     
-    token = event.get("params",{}).get("headers",{}).get("Authorization","")
+    token = event.get("params",{}).get("header",{}).get("Authorization","")
     token_claims = verify_jwt_token(token)
+    assert(token_claims["cognito:username"] == username)
+    print(token_claims)
     user_is_authorized = token_claims != False
     
     assert(user_is_authorized)
