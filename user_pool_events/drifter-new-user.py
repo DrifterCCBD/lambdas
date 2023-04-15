@@ -21,7 +21,17 @@ def lambda_handler(event, context):
     if username and email:
         with psycopg.connect(postgres_connect_string) as db:
            with db.cursor() as cur:
-                cur.execute("INSERT into users (username, email, first_name, last_name, phone, dob, gender) VALUES (%s, %s, ' ', ' ', '15555555555', '1990-01-01', ' ')", (username, email))
+                query = "INSERT into users (username, email, first_name, last_name, phone, dob, gender) VALUES (%s, %s, ' ', ' ', '0000000000', '1900-01-01', ' ')" + \
+                " ON CONFLICT ON CONSTRAINT users_username_key DO UPDATE SET email = %s WHERE users.username = %s  RETURNING user_id", (username, email, email, username)
+                print(query)
+                cur.execute(query[0],query[1])
+                user_id = cur.fetchone()
+                print(user_id)
+                cur.execute("SELECT COUNT(*) as count from addresses where user_id = %s", user_id)
+                result = cur.fetchone()[0]
+                if result == 0:
+                    cur.execute("INSERT into addresses (zip_code, country, city, street_name_and_number, user_id) VALUES ('00000', ' ', ' ', ' ', %s)", user_id)
            db.commit()
     return event
+
 
