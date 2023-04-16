@@ -32,7 +32,7 @@ def lambda_handler(event, context):
         with psycopg.connect(postgres_connect_string) as db:
             with db.cursor() as cur:
                 query = "SELECT my_trip.trip_id, my_trip.driver_id, my_trip.origin, my_trip.destination, "\
-                "my_trip.start_date, my_trip.start_time, string_agg(users.first_name, ', ') AS rider_firstnames "\
+                "my_trip.start_date, my_trip.start_time, string_agg(users.username, ', ') AS rider_firstnames "\
                 "FROM my_trip "\
                 "LEFT JOIN rider_trip ON my_trip.trip_id = rider_trip.trip_id "\
                 "LEFT JOIN riders ON rider_trip.rider_id = riders.rider_id "\
