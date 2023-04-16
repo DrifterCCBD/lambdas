@@ -161,8 +161,10 @@ def lambda_handler(event, context):
                 future_trips.append(return_data)
         
         return_json = {
-            'future_trips': future_trips
+            'future_trips': future_trips,
+            'past_trips': past_trips
         }
+
 
         return {
             'statusCode': 200,
