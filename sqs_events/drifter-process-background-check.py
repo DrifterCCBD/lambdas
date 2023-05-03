@@ -19,7 +19,7 @@ def mark_completed(username):
         )
     with psycopg.connect(postgres_connect_string, row_factory=dict_row) as db:
         with db.cursor() as cur:
-            query = "UPDATE drivers SET background_check_status = 1 WHERE user_id = (SELECT user_id FROM users WHERE username = %s)"
+            query = "UPDATE driver SET background_check_complete = true WHERE user_id = (SELECT user_id FROM users WHERE username = %s)"
             query_values = (username,)
             cur.execute(query, query_values)
         db.commit()
