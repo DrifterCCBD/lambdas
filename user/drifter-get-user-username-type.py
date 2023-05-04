@@ -87,16 +87,13 @@ def lambda_handler(event, context):
         print(username)
         with psycopg.connect(postgres_connect_string, row_factory=dict_row) as db:
            with db.cursor() as cur:
-               cur.execute("SELECT *" + \
-               " FROM driver" + \
+               cur.execute("SELECT users.username, count(driver.user_id) as is_driver, count(riders.user_id) as is_rider" + \
+               " FROM users" + \
                " LEFT JOIN users on driver.user_id = users.user_id" + \
-               " where users.username = %s", (username, ))
+               " LEFT JOIN riders on riders.user_id = users.user_id" + \
+               " where users.username = %s GROUP BY driver.user_id, riders.user_id, users.username", (username, ))
                for row in cur:
-                   row["dob"] = str(row.get("dob",""))
                    return_val.append(row)
-    if len(return_val) == 0:
-        return_val = {"background_check_complete": "false"}
-    else:
-        return_val = return_val[0]
+    print(return_val)
     return return_val
 
