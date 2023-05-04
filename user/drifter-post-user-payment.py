@@ -8,6 +8,8 @@ from jose import jwk, jwt
 from jose.utils import base64url_decode
 
 
+required_keys = ['firstName', 'lastName', 'card_number', 'month', 'year', 'zip', 'cvv']
+
 #reference: https://github.com/awslabs/aws-support-tools/blob/master/Cognito/decode-verify-jwt/decode-verify-jwt.py#L16
 
 region = 'us-east-1'
@@ -62,6 +64,7 @@ def verify_jwt_token(token):
     print(claims)
     return claims
 
+
 def lambda_handler(event, context):
     db_host = os.environ.get("POSTGRES_HOSTNAME")
     db_port = os.environ.get("POSTGRES_PORT")
@@ -76,26 +79,39 @@ def lambda_handler(event, context):
         db_pass
         )
 
+    request_body = event.get("body",{})
+
+    request_keys = request_body.keys()
+
+    assert(len(list(request_keys))>0)
+
+    for key in request_keys:
+        assert(key in required_keys)
+
+    for key in required_keys:
+        assert(key in request_keys)
 
     token = event.get("params",{}).get("header",{}).get("Authorization","")
     token_claims = verify_jwt_token(token)
-    assert(token_claims!= False)
-    assert(token_claims.get("cognito:username",False) != False)
+    assert(token_claims != False)
     username = token_claims["cognito:username"]
-    return_val = []
-    if username:
-        print(username)
-        with psycopg.connect(postgres_connect_string, row_factory=dict_row) as db:
-           with db.cursor() as cur:
-               cur.execute("SELECT payment_id, payment_methods.first_name, payment_methods.last_name, card_number" + \
-               " FROM payment_methods" + \
-               " LEFT JOIN riders on riders.rider_id = payment_methods.rider_id" + \
-               " LEFT JOIN users on users.user_id = riders.user_id" + \
-               " where users.username = %s", (username, ))
-               for row in cur:
-                   row["last_four"] = row["card_number"][-4:]
-                   row.pop("card_number")
-                   return_val.append(row)
-    print(return_val)
-    return return_val
+    print(token_claims)
+
+    query_values = (request_body['firstName'], request_body['lastName'], request_body['card_number'], request_body['cvv'], request_body['zip'], request_body['month'], request_body['year'], username)
+
+
+    with psycopg.connect(postgres_connect_string, row_factory=dict_row) as db:
+        with db.cursor() as cur:
+            query = "INSERT INTO riders (user_id) SELECT user_id from users where username = %s ON CONFLICT DO NOTHING"
+            cur.execute(query, (username,))
+            query = "INSERT INTO payment_methods(rider_id, first_name, last_name, card_number, cvv, zip_code, expiration_month, expiration_year)" +\
+            " SELECT riders.rider_id, %s, %s, %s, %s, %s, %s, %s FROM riders LEFT JOIN users on users.user_id = riders.user_id" + \
+            " WHERE users.username = %s"
+
+            cur.execute(query, query_values)
+            db.commit()
+
+
+    return "success"
+
 
