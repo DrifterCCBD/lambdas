@@ -17,7 +17,7 @@ def lambda_handler(event, context):
         db_user,
         db_pass
         )
-        
+
     return_val = []
     username = event.get("params",{}).get("path",{}).get("username",False)
     if username:
@@ -32,8 +32,8 @@ def lambda_handler(event, context):
                for row in cur:
                    row["dob"] = str(row["dob"])
                    return_val.append(row)
-               
-    
+
+
     return return_val
 
 
