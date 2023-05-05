@@ -4,6 +4,7 @@ from psycopg.rows import dict_row
 import os
 
 
+
 def lambda_handler(event, context):
     db_host = os.environ.get("POSTGRES_HOSTNAME")
     db_port = os.environ.get("POSTGRES_PORT")
@@ -18,22 +19,21 @@ def lambda_handler(event, context):
         db_pass
         )
 
+    print(event)
     return_val = []
     username = event.get("params",{}).get("path",{}).get("username",False)
     if username:
         print(username)
         with psycopg.connect(postgres_connect_string, row_factory=dict_row) as db:
            with db.cursor() as cur:
-               cur.execute("SELECT users.user_id, first_name, last_name, email, phone,"+ \
-               " dob, gender, username, street_name_and_number, city, country, zip_code, address_id" + \
-               " from users LEFT JOIN addresses on users.user_id = addresses.user_id" + \
-               " LEFT JOIN driver on users.user_id = driver.user_id" + \
-               " where username = %s", (username, ))
+               cur.execute("SELECT users.username, count(driver.user_id) as is_driver, count(riders.user_id) as is_rider" + \
+               " FROM users" + \
+               " LEFT JOIN driver on driver.user_id = users.user_id" + \
+               " LEFT JOIN riders on riders.user_id = users.user_id" + \
+               " where users.username = %s GROUP BY driver.user_id, riders.user_id, users.username", (username, ))
                for row in cur:
-                   row["dob"] = str(row["dob"])
                    return_val.append(row)
-
-
+    if len(return_val) == 1:
+        return_val = return_val[0]
     return return_val
-
 

@@ -63,6 +63,8 @@ def verify_jwt_token(token):
     return claims
 
 def lambda_handler(event, context):
+    # TODO implement
+    id_to_delete = event.get("params",{}).get("path",{}).get("id",False)
     db_host = os.environ.get("POSTGRES_HOSTNAME")
     db_port = os.environ.get("POSTGRES_PORT")
     db_name = os.environ.get("POSTGRES_DB")
@@ -76,27 +78,20 @@ def lambda_handler(event, context):
         db_pass
         )
 
-    print(event)
+
     token = event.get("params",{}).get("header",{}).get("Authorization","")
     token_claims = verify_jwt_token(token)
     assert(token_claims!= False)
     assert(token_claims.get("cognito:username",False) != False)
     username = token_claims["cognito:username"]
-    return_val = []
-    if username:
-        print(username)
+
+    if id_to_delete and username:
         with psycopg.connect(postgres_connect_string, row_factory=dict_row) as db:
            with db.cursor() as cur:
-               cur.execute("SELECT *" + \
-               " FROM driver" + \
-               " LEFT JOIN users on driver.user_id = users.user_id" + \
-               " where users.username = %s", (username, ))
-               for row in cur:
-                   row["dob"] = str(row.get("dob",""))
-                   return_val.append(row)
-    if len(return_val) == 0:
-        return_val = {"background_check_complete": "false"}
-    else:
-        return_val = return_val[0]
-    return return_val
+               cur.execute("DELETE FROM payment_methods WHERE " + \
+               "rider_id in (SELECT rider_id from riders " + \
+               " LEFT JOIN users on users.user_id = riders.user_id where users.username = %s) AND payment_methods.payment_id = %s", (username, id_to_delete))
 
+    return {
+        'statusCode': 200,
+    }
