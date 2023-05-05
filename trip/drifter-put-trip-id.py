@@ -4,6 +4,8 @@ from psycopg.rows import dict_row
 import os
 import urllib.request
 import time
+import hashlib
+import boto3
 from jose import jwk, jwt
 from jose.utils import base64url_decode
 #reference: https://github.com/awslabs/aws-support-tools/blob/master/Cognito/decode-verify-jwt/decode-verify-jwt.py#L16
@@ -36,6 +38,7 @@ def connect_to_db():
     return psycopg.connect(postgres_connect_string, row_factory=dict_row)
 
 def add_data_to_queue(data, msg_group="notification"):
+    #todo: add support for batching to speed this up
     dedup_id = hashlib.md5(str(data).encode('utf-8')).hexdigest()[:8] + str(time.time())[-14:-4]
     sqs = sqs = boto3.resource('sqs')
     queue = sqs.get_queue_by_name(QueueName='drifter-sqs.fifo')
@@ -101,6 +104,57 @@ def verify_jwt_token(token):
             #then reject other riders
     #case: jwt token is *not* owned by driver_id
         #{"rider_id" : 7}
+        # in both cases rider_id is the user_id of the rider
+
+def build_query(table,keys, tail=""):
+    query = "UPDATE {} SET ".format(table)
+    query += "{} = %s".format(" = %s, ".join(keys))
+    return query + tail
+
+def make_notification(msg,dst):
+
+    message = {
+        "type" : "notification",
+        "msg" : msg.replace("\n", "\n<br />"),
+        "dst" : dst}
+    add_data_to_queue(message, message["type"])
+
+def notify_riders_of_changes(cur, trip_id, changes):
+    msg = "The driver has made a change for your upcoming trip.\n" + changes
+    query = "SELECT users.email, users.first_name from users" + \
+    " LEFT JOIN riders on users.user_id = riders.user_id" + \
+    " LEFT JOIN rider_trip on riders.rider_id = rider_trip.rider_id"+ \
+    " WHERE rider_trip.trip_id = %s"
+
+    cur.execute(query, (trip_id,))
+    for row in cur:
+        final_msg = "Dear {}\n\n{}".format(row["first_name"],msg)
+        dst = row["email"]
+        make_notification(msg,dst)
+
+authorized_update_keys = [ "max_capacity", "start_time", "start_date", "destination", "origin" ]
+
+def update_trip_data(db, cur, username, trip_current_status, request_body):
+    query_keys = []
+    trip_id = trip_current_status["trip_id"]
+    query_values = []
+    for key in request_body:
+        if key in authorized_update_keys:
+            query_keys.append(key)
+            query_values.append(request_body[key])
+    tail_query = " WHERE trip_id = %s"
+    query_values.append(trip_id)
+    query = build_query("my_trip", query_keys, tail_query)
+    cur.execute(query, query_values)
+    db.commit()
+    changes_made = False
+    changes = "The following items have changed:\n"
+    for key in query_keys:
+        if trip_current_status[key] != request_body[key]:
+            changes_made = True
+            changes += "\t - {} has changed from {} to {}\n".format(key, trip_current_status[key], request_body[key])
+    if changes_made:
+        notify_riders_of_changes(cur, trip_id, changes)
 
 
 def ret_error(msg, errcode=500):
@@ -110,7 +164,40 @@ def ret_error(msg, errcode=500):
     }
     return err_msg
 
-authorized_update_keys = [ "max_capacity", "start_time", "start_date", "destination", "origin" ]
+def request_trip(db, cur, trip_id, username, trip_current_status):
+    query = "INSERT INTO rider_trip(rider_id, trip_id, accepted) " +\
+    " SELECT riders.rider_id, %s, false FROM riders" + \
+    " LEFT JOIN users on riders.user_id = users.user_id" + \
+    " WHERE username = %s"
+    query_values = (trip_id, username)
+    cur.execute(query, query_values)
+    db.commit()
+
+    cur.execute("SELECT first_name, email FROM users WHERE username = %s", (trip_current_status["driver_username"],))
+    user_info = cur.fetchone()
+
+    msg = "Dear {},\n"
+    msg += "A new rider has requested to join your trip to {}. Please log in to review it."
+    msg= msg.format(user_info["first_name"], trip_current_status["destination"])
+    make_notification(msg, user_info["email"])
+
+
+def accept_user_request(db, cur, username, trip_id, trip_current_status):
+    query = "UPDATE rider_trip set accepted = true" + \
+    " WHERE trip_id = %s AND rider_id = (SELECT rider_id FROM riders" + \
+    " LEFT JOIN users ON riders.user_id = users.user_id WHERE users.username = %s)"
+    cur.execute(query, (trip_id, username))
+    db.commit()
+
+    cur.execute("SELECT first_name, email FROM users WHERE username = %s", (username,))
+    user_info = cur.fetchone()
+
+    msg = "Dear {},\n"
+    msg += "The driver for your trip to {} has accepted your request to join their trip!"
+    msg = msg.format(user_info["first_name"], trip_current_status["destination"])
+    make_notification(msg, user_info["email"])
+    return "successfully accepted ride request"
+
 
 def lambda_handler(event, context):
 
@@ -130,6 +217,7 @@ def lambda_handler(event, context):
         return ret_error("username missing from token")
 
     request_body = event.get("body",{})
+
     request_keys = request_body.keys()
 
     response_message = ""
@@ -142,27 +230,26 @@ def lambda_handler(event, context):
             " LEFT JOIN driver on driver.driver_id = my_trip.driver_id" + \
             " LEFT JOIN users on driver.user_id = users.user_id" + \
             " LEFT JOIN rider_trip on rider_trip.trip_id = my_trip.trip_id" + \
-            " WHERE my_trip.trip_id = %s" + \
+            " WHERE my_trip.trip_id = %s and rider_trip.accepted = true" + \
             " GROUP BY rider_trip.trip_id, my_trip.trip_id, users.username", (trip_id,) )
-            trip_current_status = cur.fetchone();
+            trip_current_status = cur.fetchone()
             if "rider_id" in request_keys:
-                if trip_current_status["rider_count"] >= trip_current_status["max_capacity"]
+                if trip_current_status["rider_count"] >= trip_current_status["max_capacity"]:
                     return ret_error("Trip At Capacity",403)
                 if "accepted" in request_keys and username == trip_current_status["driver_username"]:
-                    # accept user to trip
-                    pass
+                    response_message = accept_user_request(db, cur, username, trip_id, trip_current_status)
                 elif username != trip_current_status["driver_username"]:
-                    # request to add trip
-                    pass
+                    request_trip(db, cur, trip_id, username, trip_current_status)
                 else:
                     return ret_error("missing key: accepted")
             elif username == trip_current_status["driver_username"]:
-                # update trip for user
-                pass
+                for key in request_keys:
+                    if key not in authorized_update_keys:
+                        return ret_error("unauthorized key: {}".format(key))
+                update_trip_data(db, cur, username, trip_current_status, request_body)
             else:
                 return ret_error("Malformed Request")
             db.commit()
-    print(trip_current_status)
 
 
     return {
