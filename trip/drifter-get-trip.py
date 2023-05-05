@@ -71,6 +71,7 @@ def lambda_handler(event, context):
                 return_data['driver_username'] = data[3]
                     
                 return_data['date_time'] = str(datetime.datetime.combine(data[4], data[5]))
+
                 
                 
                 if datetime.datetime.combine(data[4], data[5]) < datetime.datetime.now():
@@ -79,18 +80,19 @@ def lambda_handler(event, context):
                     future_trips.append(return_data)
 
         else:
-            query = "SELECT my_trip.trip_id, my_trip.driver_id, my_trip.origin, my_trip.destination, "\
-                "my_trip.start_date, my_trip.start_time, string_agg(users.username, ', ') AS rider_firstnames "\
-                "FROM my_trip "\
-                "LEFT JOIN rider_trip ON my_trip.trip_id = rider_trip.trip_id "\
-                "LEFT JOIN riders ON rider_trip.rider_id = riders.rider_id "\
-                "LEFT JOIN users ON riders.user_id = users.user_id "\
-                "WHERE my_trip.driver_id = ( "\
-                "SELECT driver_id "\
-                "FROM users "\
-                "WHERE username = '" + username + "' "\
-                ") "\
-                "GROUP BY my_trip.trip_id"
+            query = "SELECT my_trip.trip_id, my_trip.driver_id, my_trip.origin, my_trip.destination,\
+            my_trip.start_date, my_trip.start_time, string_agg(users.username, ', ') AS rider_usernames,\
+            my_trip.max_capacity, my_trip.price, my_trip.curr_capacity\
+            FROM my_trip\
+            LEFT JOIN rider_trip ON my_trip.trip_id = rider_trip.trip_id\
+            LEFT JOIN riders ON rider_trip.rider_id = riders.rider_id\
+            LEFT JOIN users ON riders.user_id = users.user_id\
+            WHERE my_trip.driver_id = (\
+            SELECT driver_id\
+            FROM users\
+            WHERE username = '" + username + "'\
+            )\
+            GROUP BY my_trip.trip_id"
 
             with psycopg.connect(postgres_connect_string) as db:
                 with db.cursor() as cur:
@@ -103,13 +105,18 @@ def lambda_handler(event, context):
             
             
             for data in query_result:
+                print(data)
                 return_data = {}
                 return_data['trip_id'] = data[0]
                 return_data['origin'] = data[2]
                 return_data['destination'] = data[3]
-                return_data['rider_firstnames'] = data[6]
+                return_data['rider_usernames'] = data[6]
                     
                 return_data['date_time'] = str(datetime.datetime.combine(data[4], data[5]))
+                return_data['max_capacity'] = data[7]
+                return_data['curr_capacity'] = data[9]
+                return_data['price'] = data[8]
+                
                 
                 
                 if datetime.datetime.combine(data[4], data[5]) < datetime.datetime.now():
@@ -121,6 +128,8 @@ def lambda_handler(event, context):
             'future_trips': future_trips,
             'past_trips': past_trips
         }
+        
+        print('hello', return_json)
 
         return {
             'statusCode': 200,
@@ -164,6 +173,8 @@ def lambda_handler(event, context):
             'future_trips': future_trips,
             'past_trips': past_trips
         }
+        
+        print(return_json)
 
 
         return {
