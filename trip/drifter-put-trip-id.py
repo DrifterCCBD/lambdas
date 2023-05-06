@@ -98,13 +98,13 @@ def verify_jwt_token(token):
             #are there accepted riders?
             #if so, notify each one of the change.
         #subcase: making decision about rider
-            #{"rider_id": 1, "accepted": true}
+            #{"rider_username": "bja2142", "accepted": true}
             #if this puts the trip at capacity
             #and another rider also requested to join
             #then reject other riders
     #case: jwt token is *not* owned by driver_id
-        #{"rider_id" : 7}
-        # in both cases rider_id is the user_id of the rider
+        #{}
+        #uses JWT to identify username
 
 def build_query(table,keys, tail=""):
     query = "UPDATE {} SET ".format(table)
@@ -182,11 +182,11 @@ def request_trip(db, cur, trip_id, username, trip_current_status):
     make_notification(msg, user_info["email"])
 
 
-def accept_user_request(db, cur, username, trip_id, trip_current_status):
+def accept_user_request(db, cur, rider_username, trip_id, trip_current_status):
     query = "UPDATE rider_trip set accepted = true" + \
     " WHERE trip_id = %s AND rider_id = (SELECT rider_id FROM riders" + \
     " LEFT JOIN users ON riders.user_id = users.user_id WHERE users.username = %s)"
-    cur.execute(query, (trip_id, username))
+    cur.execute(query, (trip_id, rider_username))
     db.commit()
 
     cur.execute("SELECT first_name, email FROM users WHERE username = %s", (username,))
@@ -197,6 +197,25 @@ def accept_user_request(db, cur, username, trip_id, trip_current_status):
     msg = msg.format(user_info["first_name"], trip_current_status["destination"])
     make_notification(msg, user_info["email"])
     return "successfully accepted ride request"
+
+def cancel_request(db, cur, trip_id, rider_username, trip_current_status):
+    query = "DELETE FROM rider_trip" + \
+    " WHERE trip_id = %s AND rider_id = (SELECT rider_id FROM riders" + \
+    " LEFT JOIN users ON riders.user_id = users.user_id WHERE users.username = %s)"
+    cur.execute(query, (trip_id, rider_username))
+    db.commit()
+
+    cur.execute("SELECT first_name, email FROM users" + \
+        " JOIN driver on driver.user_id = users.user_id" + \
+        " JOIN my_trip on driver.driver_id = my_trip.driver_id" + \
+        " WHERE my_trip.trip_id = %s", (trip_id,))
+    user_info = cur.fetchone()
+
+    msg = "Dear {},\n"
+    msg += "The user {} has canceled their request to join your trip to {}."
+    msg = msg.format(user_info["first_name"], rider_username, trip_current_status["destination"])
+    make_notification(msg, user_info["email"])
+    return "successfully canceled ride request"
 
 
 def lambda_handler(event, context):
@@ -233,21 +252,25 @@ def lambda_handler(event, context):
             " WHERE my_trip.trip_id = %s" + \
             " GROUP BY rider_trip.trip_id, my_trip.trip_id, users.username", (trip_id,) )
             trip_current_status = cur.fetchone()
-            if "rider_id" in request_keys:
+            if "rider_username" in request_keys or len(request_keys) == 0:
                 if trip_current_status["rider_count"] >= trip_current_status["max_capacity"]:
                     return ret_error("Trip At Capacity",403)
-                if "accepted" in request_keys and username == trip_current_status["driver_username"]:
-                    response_message = accept_user_request(db, cur, username, trip_id, trip_current_status)
+                if "accepted" in request_keys and "rider_username" in request_keys \
+                        and username == trip_current_status["driver_username"]:
+                    response_message = accept_user_request(db, cur, request_body.get("rider_username"), trip_id, trip_current_status)
                 elif username != trip_current_status["driver_username"]:
-                    request_trip(db, cur, trip_id, username, trip_current_status)
+                    response_message = request_trip(db, cur, trip_id, username, trip_current_status)
                 else:
                     return ret_error("missing key: accepted")
+            elif "cancel" in request_keys and username != trip_current_status["driver_username"]:
+                response_message = cancel_request(db, cur, trip_id, username, trip_current_status)
             elif username == trip_current_status["driver_username"]:
                 for key in request_keys:
                     if key not in authorized_update_keys:
                         return ret_error("unauthorized key: {}".format(key))
-                update_trip_data(db, cur, username, trip_current_status, request_body)
+                response_message = update_trip_data(db, cur, username, trip_current_status, request_body)
             else:
+                print(event)
                 return ret_error("Malformed Request")
             db.commit()
 
