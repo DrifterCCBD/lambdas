@@ -21,24 +21,25 @@ def connect_to_db():
 
 
 def lambda_handler(event, context):
+    print(event)
+    trip_id = int(event.get("params",{}).get("path",{}).get("id",False))
 
-    trip_id = event.get("params",{}).get("path",{}).get("id",False)
-    trip_id = 1
     trip_current_status = {}
     if(trip_id):
         with connect_to_db() as db:
             with db.cursor() as cur:
-                cur.execute("SELECT my_trip.trip_id, my_trip.driver_id, origin, destination," + \
-                "start_date, start_time, max_capacity, count(rider_trip.rider_id) as rider_count," + \
+                cur.execute("SELECT my_trip.trip_id, price, my_trip.driver_id, origin, destination," + \
+                "start_date, start_time, max_capacity, price, count(rider_trip.accepted) as rider_count," + \
                 " users.username as driver_username FROM my_trip" + \
                 " LEFT JOIN driver on driver.driver_id = my_trip.driver_id" + \
                 " LEFT JOIN users on driver.user_id = users.user_id" + \
                 " LEFT JOIN rider_trip on rider_trip.trip_id = my_trip.trip_id" + \
-                " WHERE my_trip.trip_id = %s and rider_trip.accepted = true" + \
+                " WHERE my_trip.trip_id = %s" + \
                 " GROUP BY rider_trip.trip_id, my_trip.trip_id, users.username", (trip_id,) )
                 trip_current_status = cur.fetchone()
-                trip_current_status["start_time"] = str(trip_current_status["start_time"])
-                trip_current_status["start_date"] = str(trip_current_status["start_date"])
+                if trip_current_status:
+                    trip_current_status["start_time"] = str(trip_current_status["start_time"])
+                    trip_current_status["start_date"] = str(trip_current_status["start_date"])
 
 
     return {

@@ -132,7 +132,7 @@ def notify_riders_of_changes(cur, trip_id, changes):
         dst = row["email"]
         make_notification(msg,dst)
 
-authorized_update_keys = [ "max_capacity", "start_time", "start_date", "destination", "origin" ]
+authorized_update_keys = [ "max_capacity", "start_time", "start_date", "destination", "origin", "price" ]
 
 def update_trip_data(db, cur, username, trip_current_status, request_body):
     query_keys = []
@@ -224,13 +224,13 @@ def lambda_handler(event, context):
     trip_current_status = {}
     with connect_to_db() as db:
         with db.cursor() as cur:
-            cur.execute("SELECT my_trip.trip_id, my_trip.driver_id, origin, destination," + \
-            "start_date, start_time, max_capacity, count(rider_trip.rider_id) as rider_count," + \
+            cur.execute("SELECT my_trip.trip_id, my_trip.driver_id, price, origin, destination," + \
+            "start_date, start_time, max_capacity, count(rider_trip.accepted) as rider_count," + \
             " users.username as driver_username FROM my_trip" + \
             " LEFT JOIN driver on driver.driver_id = my_trip.driver_id" + \
             " LEFT JOIN users on driver.user_id = users.user_id" + \
             " LEFT JOIN rider_trip on rider_trip.trip_id = my_trip.trip_id" + \
-            " WHERE my_trip.trip_id = %s and rider_trip.accepted = true" + \
+            " WHERE my_trip.trip_id = %s" + \
             " GROUP BY rider_trip.trip_id, my_trip.trip_id, users.username", (trip_id,) )
             trip_current_status = cur.fetchone()
             if "rider_id" in request_keys:
