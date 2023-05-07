@@ -2,8 +2,23 @@ import json
 import datetime
 import psycopg
 import os
+from psycopg.rows import dict_row
 
 
+def connect_to_db():
+    db_host = os.environ.get("POSTGRES_HOSTNAME")
+    db_port = os.environ.get("POSTGRES_PORT")
+    db_name = os.environ.get("POSTGRES_DB")
+    db_user = os.environ.get("POSTGRES_USER")
+    db_pass = os.environ.get("POSTGRES_PASS")
+    postgres_connect_string = "host='{}' port='{}' sslmode=verify-full sslrootcert=/opt/global-bundle.pem dbname='{}' user='{}' password='{}'".format(
+        db_host,
+        db_port,
+        db_name,
+        db_user,
+        db_pass
+        )
+    return psycopg.connect(postgres_connect_string, row_factory=dict_row)
 
 def lambda_handler(event, context):
     # We're sending parameters with the request from the frontend
@@ -37,6 +52,9 @@ def lambda_handler(event, context):
 
     rider = event['params']['querystring'].get('rider', '')
     available = event['params']['querystring'].get('available','')
+    driver_pending = event['params']['querystring'].get('driver_pending','')
+    show_pending = event['params']['querystring'].get('show_pending','')
+
 
     if rider == 'true':
         """query = "SELECT mt.trip_id, mt.origin, mt.destination, u.username AS driver_username, mt.start_date, mt.start_time\
@@ -163,21 +181,19 @@ def lambda_handler(event, context):
             'statusCode': 200,
             'body': json.dumps({'results': return_json}),
         }
-    else:
+    elif rider == "false":
         query = "SELECT my_trip.trip_id, my_trip.driver_id, my_trip.origin, my_trip.destination,\
         my_trip.start_date, my_trip.start_time, string_agg(users.username, ', ') AS rider_usernames,\
-        my_trip.max_capacity, my_trip.price, count(capacity.accepted) as curr_capacity, rt.accepted\
+        my_trip.max_capacity, my_trip.price, count(rt.accepted) as curr_capacity\
         FROM my_trip\
-        LEFT JOIN rider_trip rt ON my_trip.trip_id = rt.trip_id\
+        LEFT JOIN rider_trip rt ON my_trip.trip_id = rt.trip_id AND rt.accepted = true\
         LEFT JOIN riders ON rt.rider_id = riders.rider_id\
-        LEFT JOIN rider_trip capacity ON capacity.trip_id = my_trip.trip_id\
         LEFT JOIN users ON riders.user_id = users.user_id\
         WHERE my_trip.driver_id = (\
-        SELECT driver_id\
-        FROM users\
+        SELECT driver_id FROM driver INNER JOIN users on driver.user_id = users.user_id\
         WHERE username = %s\
         )\
-        GROUP BY my_trip.trip_id, capacity.trip_id, rt.rider_id, rt.trip_id, rt.accepted"
+        GROUP BY my_trip.trip_id"
 
         with psycopg.connect(postgres_connect_string) as db:
             with db.cursor() as cur:
@@ -187,7 +203,6 @@ def lambda_handler(event, context):
         print(query_result)
         past_trips = []
         future_trips = []
-        pending_future_trips = []
 
 
         for data in query_result:
@@ -202,7 +217,6 @@ def lambda_handler(event, context):
             return_data['max_capacity'] = data[7]
             return_data['curr_capacity'] = data[9]
             return_data['price'] = data[8]
-            return_data['accepted'] = data[10]
 
 
 
@@ -215,13 +229,40 @@ def lambda_handler(event, context):
             'future_trips': future_trips,
             'past_trips': past_trips
         }
+        return {
+            'statusCode': 200,
+            'body': json.dumps({'results': return_json}),
+        }
+    elif show_pending == "true":
+        return_data = []
+        with connect_to_db() as db:
+            with db.cursor() as cur:
+                cur.execute("SELECT my_trip.trip_id, my_trip.origin, my_trip.destination,\
+                            my_trip.start_date, my_trip.start_time, users.username AS request_username,\
+                            my_trip.max_capacity, my_trip.price\
+                            FROM my_trip\
+                            LEFT JOIN rider_trip rt ON my_trip.trip_id = rt.trip_id\
+                            LEFT JOIN riders ON rt.rider_id = riders.rider_id\
+                            LEFT JOIN users ON riders.user_id = users.user_id\
+                            LEFT JOIN driver ON my_trip.driver_id = driver.driver_id\
+                            LEFT JOIN users driver_users ON driver.user_id = driver_users.user_id\
+                            WHERE rt.accepted = false AND driver_users.username = %s \
+                            GROUP BY my_trip.trip_id, users.username", (username,) )
 
-    print('hello', return_json)
+                for row in cur:
+                    row['date_time'] = str(datetime.datetime.combine(row["start_date"], row["start_time"]))
+                    row.pop("start_time")
+                    row.pop("start_date")
+                    return_data.append(row)
 
+
+        return {
+            'statusCode': 200,
+            'body': return_data,
+        }
     return {
         'statusCode': 200,
         'body': json.dumps({'results': return_json}),
-        'event' : event
     }
 
     # TODO implement

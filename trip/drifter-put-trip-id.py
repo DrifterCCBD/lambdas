@@ -181,15 +181,34 @@ def request_trip(db, cur, trip_id, username, trip_current_status):
     msg= msg.format(user_info["first_name"], trip_current_status["destination"])
     make_notification(msg, user_info["email"])
 
-
-def accept_user_request(db, cur, rider_username, trip_id, trip_current_status):
-    query = "UPDATE rider_trip set accepted = true" + \
+def deny_request(db, cur, trip_id, rider_username, trip_current_status):
+    query = "DELETE FROM rider_trip" + \
     " WHERE trip_id = %s AND rider_id = (SELECT rider_id FROM riders" + \
     " LEFT JOIN users ON riders.user_id = users.user_id WHERE users.username = %s)"
     cur.execute(query, (trip_id, rider_username))
     db.commit()
 
-    cur.execute("SELECT first_name, email FROM users WHERE username = %s", (username,))
+    cur.execute("SELECT first_name, email FROM users WHERE username = %s", (rider_username,))
+    user_info = cur.fetchone()
+
+    msg = "Dear {},\n"
+    msg += "The driver for your trip to {} has denied your request to join their trip!"
+    msg = msg.format(user_info["first_name"], trip_current_status["destination"])
+    make_notification(msg, user_info["email"])
+    return "successfully rejected ride request"
+
+
+def decide_user_request(db, cur, rider_username, trip_id, trip_current_status, decision):
+    assert(decision in [True, False])
+    if not decision:
+        return deny_request(db, cur, trip_id, rider_username, trip_current_status)
+    query = "UPDATE rider_trip set accepted = %s" + \
+    " WHERE trip_id = %s AND rider_id = (SELECT rider_id FROM riders" + \
+    " LEFT JOIN users ON riders.user_id = users.user_id WHERE users.username = %s)"
+    cur.execute(query, (decision,trip_id, rider_username))
+    db.commit()
+
+    cur.execute("SELECT first_name, email FROM users WHERE username = %s", (rider_username,))
     user_info = cur.fetchone()
 
     msg = "Dear {},\n"
@@ -257,7 +276,7 @@ def lambda_handler(event, context):
                     return ret_error("Trip At Capacity",403)
                 if "accepted" in request_keys and "rider_username" in request_keys \
                         and username == trip_current_status["driver_username"]:
-                    response_message = accept_user_request(db, cur, request_body.get("rider_username"), trip_id, trip_current_status)
+                    response_message = decide_user_request(db, cur, request_body.get("rider_username"), trip_id, trip_current_status, request_body.get("accepted"))
                 elif username != trip_current_status["driver_username"]:
                     response_message = request_trip(db, cur, trip_id, username, trip_current_status)
                 else:
