@@ -215,13 +215,12 @@ def decide_user_request(db, cur, rider_username, trip_id, trip_current_status, d
     driver_info = cur.fetchone()
 
     msg = "Dear {},\n"
-    msg += "The driver for your trip to {} has accepted your request to join their trip! The driver info is: {} {} - Phone: {}; Email: {}"
+    msg += "The driver for your trip to {} has accepted your request to join their trip! The driver info is: {} {} - Email: {}"
     msg = msg.format(
         user_info["first_name"],
         trip_current_status["destination"],
         driver_info["first_name"],
         driver_info["last_name"],
-        driver_info["phone"],
         driver_info["email"])
     make_notification(msg, user_info["email"])
     return "successfully accepted ride request"
