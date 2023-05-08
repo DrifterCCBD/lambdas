@@ -35,5 +35,3 @@ def lambda_handler(event, context):
 
 
     return return_val
-
-

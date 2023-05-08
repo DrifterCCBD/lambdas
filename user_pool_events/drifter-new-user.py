@@ -15,7 +15,7 @@ def lambda_handler(event, context):
         db_user,
         db_pass
         )
-    
+
     username = event.get("userName",False)
     email = event.get("request",{}).get("userAttributes",{}).get("email",False)
     if username and email:

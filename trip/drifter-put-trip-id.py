@@ -263,7 +263,7 @@ def lambda_handler(event, context):
     with connect_to_db() as db:
         with db.cursor() as cur:
             cur.execute("SELECT my_trip.trip_id, my_trip.driver_id, price, origin, destination," + \
-            "start_date, start_time, max_capacity, count(rider_trip.accepted) as rider_count," + \
+            "start_date, start_time, max_capacity, sum(rider_trip.accepted::int) as rider_count," + \
             " users.username as driver_username FROM my_trip" + \
             " LEFT JOIN driver on driver.driver_id = my_trip.driver_id" + \
             " LEFT JOIN users on driver.user_id = users.user_id" + \

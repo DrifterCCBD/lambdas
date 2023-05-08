@@ -1,13 +1,14 @@
 import json
-import os
-import boto3
 import psycopg
 from psycopg.rows import dict_row
+import os
 import urllib.request
 import time
 from jose import jwk, jwt
 from jose.utils import base64url_decode
 
+
+#reference: https://github.com/awslabs/aws-support-tools/blob/master/Cognito/decode-verify-jwt/decode-verify-jwt.py#L16
 
 region = 'us-east-1'
 userpool_id = 'us-east-1_t2k3bBj7B'
@@ -20,52 +21,6 @@ with urllib.request.urlopen(keys_url) as f:
   response = f.read()
 keys = json.loads(response.decode('utf-8'))['keys']
 print(keys)
-
-def lambda_handler(event, context):
-
-    try:
-        username = event['params']['querystring']['username']
-    except:
-        token = event.get("params",{}).get("header",{}).get("Authorization","")
-        token_claims = verify_jwt_token(token)
-        assert(token_claims != False)
-        username = token_claims["cognito:username"]
-
-
-    db_host = os.environ.get("POSTGRES_HOSTNAME")
-    db_port = os.environ.get("POSTGRES_PORT")
-    db_name = os.environ.get("POSTGRES_DB")
-    db_user = os.environ.get("POSTGRES_USER")
-    db_pass = os.environ.get("POSTGRES_PASS")
-    postgres_connect_string = "host='{}' port='{}' sslmode=verify-full sslrootcert=/opt/global-bundle.pem dbname='{}' user='{}' password='{}'".format(
-        db_host,
-        db_port,
-        db_name,
-        db_user,
-        db_pass
-        )
-
-    return_val = []
-    if username:
-        with psycopg.connect(postgres_connect_string, row_factory=dict_row) as db:
-            with db.cursor() as cur:
-
-                query1 = "SELECT driver.driver_id FROM driver JOIN users ON driver.user_id = users.user_id WHERE users.username=%s"
-                query_values1 = (username,)
-                cur.execute(query1, query_values1)
-                h = cur.fetchone()
-                id = h['driver_id']
-                query = "SELECT * from car_info WHERE driver_id=%s"
-                query_values = (id,)
-                cur.execute(query, query_values)
-                for row in cur:
-                    return_val.append(row)
-            db.commit()
-    if len(return_val) == 0:
-        return_val = {"background_check_complete": "false"}
-    else:
-        return_val = return_val[0]
-    return return_val
 
 def verify_jwt_token(token):
     # get the kid from the headers prior to verification
@@ -107,3 +62,35 @@ def verify_jwt_token(token):
     print(claims)
     return claims
 
+def lambda_handler(event, context):
+
+    id_to_delete = event.get("params",{}).get("path",{}).get("id",False)
+    db_host = os.environ.get("POSTGRES_HOSTNAME")
+    db_port = os.environ.get("POSTGRES_PORT")
+    db_name = os.environ.get("POSTGRES_DB")
+    db_user = os.environ.get("POSTGRES_USER")
+    db_pass = os.environ.get("POSTGRES_PASS")
+    postgres_connect_string = "host='{}' port='{}' sslmode=verify-full sslrootcert=/opt/global-bundle.pem dbname='{}' user='{}' password='{}'".format(
+        db_host,
+        db_port,
+        db_name,
+        db_user,
+        db_pass
+        )
+
+
+    token = event.get("params",{}).get("header",{}).get("Authorization","")
+    token_claims = verify_jwt_token(token)
+    assert(token_claims!= False)
+    assert(token_claims.get("cognito:username",False) != False)
+    username = token_claims["cognito:username"]
+
+    if id_to_delete and username:
+        with psycopg.connect(postgres_connect_string, row_factory=dict_row) as db:
+           with db.cursor() as cur:
+               cur.execute("DELETE FROM my_trip WHERE " + \
+               "trip_id = %s", (id_to_delete,))
+
+    return {
+        'statusCode': 200,
+    }

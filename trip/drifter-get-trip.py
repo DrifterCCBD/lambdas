@@ -68,7 +68,7 @@ def lambda_handler(event, context):
 
         query = "SELECT my_trip.trip_id, my_trip.driver_id, my_trip.origin, my_trip.destination,\
         my_trip.start_date, my_trip.start_time, string_agg(users.username, ', ') AS rider_usernames,\
-        my_trip.max_capacity, my_trip.price, count(capacity.accepted) as curr_capacity, rt.accepted,\
+        my_trip.max_capacity, my_trip.price, sum(capacity.accepted::int) as curr_capacity, rt.accepted,\
         du.username as driver_username\
         FROM my_trip\
         LEFT JOIN rider_trip rt ON my_trip.trip_id = rt.trip_id\
