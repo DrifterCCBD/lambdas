@@ -55,7 +55,7 @@ def lambda_handler(event, context):
                 cur.execute(query1, query_values1)
                 h = cur.fetchone()
                 id = h['driver_id']
-                query = "SELECT * from car_info WHERE driver_id=%s"
+                query = "SELECT * from car_info WHERE driver_id=%s ORDER BY car_id desc LIMIT 1"
                 query_values = (id,)
                 cur.execute(query, query_values)
                 for row in cur:
@@ -106,4 +106,3 @@ def verify_jwt_token(token):
     # now we can use the claims
     print(claims)
     return claims
-
