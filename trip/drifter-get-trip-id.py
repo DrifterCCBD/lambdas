@@ -42,7 +42,8 @@ def lambda_handler(event, context):
                     trip_current_status["start_time"] = str(trip_current_status["start_time"])
                     trip_current_status["start_date"] = str(trip_current_status["start_date"])
 
-
+    if trip_current_status["rider_count"] == None:
+        trip_current_status["rider_count"] = 0
     return {
         'statusCode': 200,
         'body': json.dumps(trip_current_status),

@@ -56,6 +56,41 @@ def lambda_handler(event, context):
     show_pending = event['params']['querystring'].get('show_pending','')
 
 
+<<<<<<< Updated upstream
+=======
+<<<<<<< Updated upstream
+            with psycopg.connect(postgres_connect_string) as db:
+                with db.cursor() as cur:
+                    cur.execute(query)
+                    query_result = cur.fetchall()
+    
+            print(query_result)
+            past_trips = []
+            future_trips = []
+            
+            
+            for data in query_result:
+                print(data)
+                return_data = {}
+                return_data['trip_id'] = data[0]
+                return_data['origin'] = data[2]
+                return_data['destination'] = data[3]
+                return_data['rider_usernames'] = data[6]
+                    
+                return_data['date_time'] = str(datetime.datetime.combine(data[4], data[5]))
+                return_data['max_capacity'] = data[7]
+                return_data['curr_capacity'] = data[9]
+                return_data['price'] = data[8]
+                
+                
+                
+                if datetime.datetime.combine(data[4], data[5]) < datetime.datetime.now():
+                    past_trips.append(return_data)
+                else:
+                    future_trips.append(return_data)
+            
+=======
+>>>>>>> Stashed changes
     if rider == 'true':
         """query = "SELECT mt.trip_id, mt.origin, mt.destination, u.username AS driver_username, mt.start_date, mt.start_time\
             FROM my_trip mt\
@@ -101,7 +136,14 @@ def lambda_handler(event, context):
 
             return_data['date_time'] = str(datetime.datetime.combine(data[4], data[5]))
             return_data['max_capacity'] = data[7]
+<<<<<<< Updated upstream
             return_data['curr_capacity'] = data[9]
+=======
+            if data[9] != None:
+                return_data['curr_capacity'] = data[9]
+            else:
+                return_data['curr_capacity'] = 0
+>>>>>>> Stashed changes
             return_data['price'] = data[8]
             driver_accepted = data[10]
             return_data["driver_username"] = data[11]
@@ -122,6 +164,10 @@ def lambda_handler(event, context):
                 future_trips.append(return_data)
             else:
                 pending_trips.append(return_data)
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
         return_json = {
             'future_trips': future_trips,
             'pending_trips' : pending_trips,
@@ -181,6 +227,12 @@ def lambda_handler(event, context):
             'statusCode': 200,
             'body': json.dumps({'results': return_json}),
         }
+<<<<<<< Updated upstream
+=======
+<<<<<<< Updated upstream
+    
+=======
+>>>>>>> Stashed changes
     elif rider == "false":
         query = "SELECT my_trip.trip_id, my_trip.driver_id, my_trip.origin, my_trip.destination,\
         my_trip.start_date, my_trip.start_time, string_agg(users.username, ', ') AS rider_usernames,\
@@ -215,7 +267,14 @@ def lambda_handler(event, context):
 
             return_data['date_time'] = str(datetime.datetime.combine(data[4], data[5]))
             return_data['max_capacity'] = data[7]
+<<<<<<< Updated upstream
             return_data['curr_capacity'] = data[9]
+=======
+            if data[9] != None:
+                return_data['curr_capacity'] = data[9]
+            else:
+                return_data['curr_capacity'] = 0
+>>>>>>> Stashed changes
             return_data['price'] = data[8]
 
 
@@ -265,6 +324,10 @@ def lambda_handler(event, context):
         'body': json.dumps({'results': return_json}),
     }
 
+<<<<<<< Updated upstream
+=======
+>>>>>>> Stashed changes
+>>>>>>> Stashed changes
     # TODO implement
     return {
         'statusCode': 200,

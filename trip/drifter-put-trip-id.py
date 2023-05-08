@@ -211,9 +211,18 @@ def decide_user_request(db, cur, rider_username, trip_id, trip_current_status, d
     cur.execute("SELECT first_name, email FROM users WHERE username = %s", (rider_username,))
     user_info = cur.fetchone()
 
+    cur.execute("SELECT first_name, last_name, phone, email FROM users WHERE username = %s", (trip_current_status["driver_username"],))
+    driver_info = cur.fetchone()
+
     msg = "Dear {},\n"
-    msg += "The driver for your trip to {} has accepted your request to join their trip!"
-    msg = msg.format(user_info["first_name"], trip_current_status["destination"])
+    msg += "The driver for your trip to {} has accepted your request to join their trip! The driver info is: {} {} - Phone: {}; Email: {}"
+    msg = msg.format(
+        user_info["first_name"],
+        trip_current_status["destination"],
+        driver_info["first_name"],
+        driver_info["last_name"],
+        driver_info["phone"],
+        driver_info["email"])
     make_notification(msg, user_info["email"])
     return "successfully accepted ride request"
 
@@ -271,6 +280,9 @@ def lambda_handler(event, context):
             " WHERE my_trip.trip_id = %s" + \
             " GROUP BY rider_trip.trip_id, my_trip.trip_id, users.username", (trip_id,) )
             trip_current_status = cur.fetchone()
+            if trip_current_status["rider_count"] == None:
+                trip_current_status["rider_count"] = 0
+            print(trip_current_status)
             if "rider_username" in request_keys or len(request_keys) == 0:
                 if trip_current_status["rider_count"] >= trip_current_status["max_capacity"]:
                     return ret_error("Trip At Capacity",403)
