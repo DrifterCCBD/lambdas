@@ -8,7 +8,6 @@ import time
 from jose import jwk, jwt
 from jose.utils import base64url_decode
 
-
 region = 'us-east-1'
 userpool_id = 'us-east-1_t2k3bBj7B'
 app_client_id = '11rhsugidc5dspcofo86ec77ed'
@@ -21,15 +20,13 @@ with urllib.request.urlopen(keys_url) as f:
 keys = json.loads(response.decode('utf-8'))['keys']
 print(keys)
 
+
 def lambda_handler(event, context):
 
-    try:
-        username = event['params']['querystring']['username']
-    except:
-        token = event.get("params",{}).get("header",{}).get("Authorization","")
-        token_claims = verify_jwt_token(token)
-        assert(token_claims != False)
-        username = token_claims["cognito:username"]
+    token = event.get("params",{}).get("header",{}).get("Authorization","")
+    token_claims = verify_jwt_token(token)
+    assert(token_claims != False)
+    username = token_claims["cognito:username"]
 
 
     db_host = os.environ.get("POSTGRES_HOSTNAME")
@@ -45,7 +42,9 @@ def lambda_handler(event, context):
         db_pass
         )
 
-    return_val = []
+    id = ''
+    request_body = event.get("body",{})
+
     if username:
         with psycopg.connect(postgres_connect_string, row_factory=dict_row) as db:
             with db.cursor() as cur:
@@ -55,17 +54,19 @@ def lambda_handler(event, context):
                 cur.execute(query1, query_values1)
                 h = cur.fetchone()
                 id = h['driver_id']
-                query = "SELECT * from car_info WHERE driver_id=%s"
-                query_values = (id,)
+                query = "UPDATE car_info SET car_color=%s, car_model=%s, car_license_no=%s WHERE driver_id=%s"
+                query_values = (request_body['carColor'], request_body['carModel'], request_body['carLicensePlate'], id)
                 cur.execute(query, query_values)
-                for row in cur:
-                    return_val.append(row)
+
             db.commit()
-    if len(return_val) == 0:
-        return_val = {"background_check_complete": "false"}
-    else:
-        return_val = return_val[0]
-    return return_val
+
+
+    return {
+        'statusCode': 200,
+        'body': json.dumps('Hello from Lambda!'),
+        'event' : id
+    }
+
 
 def verify_jwt_token(token):
     # get the kid from the headers prior to verification
@@ -106,4 +107,3 @@ def verify_jwt_token(token):
     # now we can use the claims
     print(claims)
     return claims
-

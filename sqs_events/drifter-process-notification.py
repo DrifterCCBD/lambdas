@@ -1,5 +1,5 @@
 import json
-import boto3 
+import boto3
 from botocore.config import Config
 
 
@@ -19,9 +19,9 @@ def send_email(dst, msg, subject):
     body_html = """<html>
         <head></head>
         <body>
-          <p>{}</p> 
+          <p>{}</p>
           If you would like to never receive messages from this bot again,
-          please reply to this message with the text, "unsubscribe" in the message body. 
+          please reply to this message with the text, "unsubscribe" in the message body.
         </body>
         </html>""".format(msg)
     email_message = {

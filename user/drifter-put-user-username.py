@@ -12,23 +12,23 @@ authorized_keys = ['firstName', 'lastName', 'address', 'city', 'country', 'zip',
 
 key_to_table= {
     'firstName': "users",
-    'lastName': "users", 
-    'address': "addresses", 
-    'city': "addresses", 
-    'country': "addresses", 
-    'zip': "addresses", 
-    'dob': "users", 
+    'lastName': "users",
+    'address': "addresses",
+    'city': "addresses",
+    'country': "addresses",
+    'zip': "addresses",
+    'dob': "users",
     'gender': "users"
 }
 
 form_key_to_table_key= {
     'firstName': "first_name",
-    'lastName': "last_name", 
-    'address': "street_name_and_number", 
-    'city': "city", 
-    'country': "country", 
-    'zip': "zip_code", 
-    'dob': "dob", 
+    'lastName': "last_name",
+    'address': "street_name_and_number",
+    'city': "city",
+    'country': "country",
+    'zip': "zip_code",
+    'dob': "dob",
     'gender': "gender"
 }
 
@@ -110,35 +110,35 @@ def lambda_handler(event, context):
         db_user,
         db_pass
         )
-    
+
     request_body = event.get("body",{})
-    
+
     request_keys = request_body.keys()
-    
+
     assert(len(list(request_keys))>0)
-    
+
     query_keys = {"users": [], "addresses": []}
     query_values = {"users": [], "addresses": []}
-    
+
     for key in request_keys:
         assert(key in authorized_keys)
         if request_body[key] != "":
             table = key_to_table[key]
             query_keys[table].append(form_key_to_table_key[key])
             query_values[table].append(request_body[key])
-    
+
     username = event.get("params",{}).get("path",{}).get("username",False)
-    
+
     assert(username != False)
-    
+
     token = event.get("params",{}).get("header",{}).get("Authorization","")
     token_claims = verify_jwt_token(token)
     assert(token_claims["cognito:username"] == username)
     print(token_claims)
     user_is_authorized = token_claims != False
-    
+
     assert(user_is_authorized)
-    
+
 
     with psycopg.connect(postgres_connect_string, row_factory=dict_row) as db:
        with db.cursor() as cur:
@@ -149,8 +149,8 @@ def lambda_handler(event, context):
                    print(query, query_values[table])
                    cur.execute(query, query_values[table])
            db.commit()
-               
-    
+
+
     return "success"
 
 

@@ -4,6 +4,7 @@ POSTGRES_HOSTNAME="database-1.cgwwmxrgggyq.us-east-1.rds.amazonaws.com"
 POSTGRES_PORT="5432"
 POSTGRES_DB="postgres"
 
+exit 0
 
 ## build source library layer 
 test -e package && rm -r package
